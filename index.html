@@ -68,7 +68,7 @@
             {"código documento": "CLI-1002", "factura": "F-002", "vencimiento": "2023-11-15", "valor": "8500.5", "días mora": "45", "estado": "Normal", "proceso": "N/A"},
             {"código documento": "CLI-1003", "factura": "F-003", "vencimiento": "2024-01-10", "valor": "4200", "días mora": "15", "estado": "Normal", "proceso": "N/A"},
             {"código documento": "CLI-1001", "factura": "F-004", "vencimiento": "2023-10-05", "valor": "12000", "días mora": "125", "estado": "Normal", "proceso": "N/A"},
-            {"código documento": "CLI-1004", "factura": "F-005", "vencimiento": "2023-08-20", "valor": "35000", "días mora": "165", "estado": "En Legal", "proceso": "Medidas Cautelares"},
+            {"código documento": "CLI-1004", "factura": "F-005", "vencimiento": "2023-08-20", "valor": "35000", "días mora": "165", "estado": "En Legal", "proceso": "Notificación"},
             {"código documento": "CLI-1005", "factura": "F-006", "vencimiento": "2023-10-30", "valor": "18000", "días mora": "85", "estado": "Normal", "proceso": "N/A"}
           ];
 
@@ -136,7 +136,7 @@
               const daysStr = getVal(['mora', 'días', 'dias', 'vencido']) || '0';
               const valueStr = getVal(['valor', 'monto', 'saldo']) || '0';
               const estadoStr = getVal(['juridico', 'jurídico', 'estado', 'legal', 'abogado', 'etapa']) || '';
-              const procesoStr = getVal(['proceso', 'etapa proceso']) || 'Sin definir'; // <-- NUEVA CAPTURA
+              const procesoStr = getVal(['proceso', 'etapa proceso']) || 'Sin especificar'; // <-- EXTRAYENDO PROCESO
               
               const days = parseInt(daysStr, 10) || 0;
               const value = parseAmount(valueStr);
@@ -182,7 +182,7 @@
               clientsMap[clientId].facturas.push({ factura: invoice, dias_mora: days, valor: value });
 
               if (isJuridico) {
-                casos_juridico.push({ cliente: clientId, factura: invoice, dias_mora: days, valor: value, estado_original: estadoStr, proceso: procesoStr }); // <-- PASAMOS PROCESO
+                casos_juridico.push({ cliente: clientId, factura: invoice, dias_mora: days, valor: value, estado_original: estadoStr, proceso: procesoStr }); // <-- PASANDO PROCESO
               } else if (days > 120 && !isJuridico) {
                 casos_criticos_sin_juridico.push({ cliente: clientId, factura: invoice, dias_mora: days, valor: value, estado_original: estadoStr || 'Normal' });
               }
@@ -198,12 +198,12 @@
                 mapa[c.cliente].facturas.push(c.factura);
                 if (c.dias_mora > mapa[c.cliente].max_mora) mapa[c.cliente].max_mora = c.dias_mora;
                 if (c.estado_original) mapa[c.cliente].estados.add(c.estado_original);
-                if (c.proceso) mapa[c.cliente].procesos.add(c.proceso); // <-- AGRUPAMOS PROCESOS
+                if (c.proceso) mapa[c.cliente].procesos.add(c.proceso);
               });
               return Object.values(mapa).map(c => ({
                 ...c,
                 estados: Array.from(c.estados).join(', '),
-                procesos: Array.from(c.procesos).join(', ') // <-- LISTA DE PROCESOS
+                procesos: Array.from(c.procesos).join(', ')
               })).sort((a, b) => b.total_valor - a.total_valor);
             };
 
@@ -347,7 +347,7 @@
             );
           };
 
-          if (loading && !data) return null;
+          if (loading && !data) return null; 
           if (!data) return null;
 
           return (
@@ -379,8 +379,87 @@
                 </div>
 
                 <div className="p-6 md:p-8">
-                   {/* ... (Secciones omitidas para brevedad del bloque, pero se mantienen todas en el archivo final) ... */}
-                   
+                   {activeTab === 'analisis' && (
+                     <div className="space-y-6">
+                        <div className="mb-2">
+                          <h3 className="text-xl font-bold text-slate-800 mb-4">Resumen de Totalidad por Rangos</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div onClick={() => setSelectedRange('Verde')} className={`p-5 rounded-xl shadow-sm cursor-pointer border ${selectedRange === 'Verde' ? 'bg-green-100 border-green-500' : 'bg-green-50 border-green-200'}`}>
+                              <p className="text-sm font-bold text-green-700 uppercase">Verde (1-30 días)</p>
+                              <p className="text-2xl font-black text-green-900 mt-1">${data.resumen_morosidad.Verde_1_30.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</p>
+                            </div>
+                            <div onClick={() => setSelectedRange('Amarillo')} className={`p-5 rounded-xl shadow-sm cursor-pointer border ${selectedRange === 'Amarillo' ? 'bg-yellow-100 border-yellow-500' : 'bg-yellow-50 border-yellow-200'}`}>
+                              <p className="text-sm font-bold text-yellow-700 uppercase">Amarillo (31-60 días)</p>
+                              <p className="text-2xl font-black text-yellow-900 mt-1">${data.resumen_morosidad.Amarillo_31_60.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</p>
+                            </div>
+                            <div onClick={() => setSelectedRange('Naranja')} className={`p-5 rounded-xl shadow-sm cursor-pointer border ${selectedRange === 'Naranja' ? 'bg-orange-100 border-orange-500' : 'bg-orange-50 border-orange-200'}`}>
+                              <p className="text-sm font-bold text-orange-700 uppercase">Naranja (61-120 días)</p>
+                              <p className="text-2xl font-black text-orange-900 mt-1">${data.resumen_morosidad.Naranja_61_120.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</p>
+                            </div>
+                            <div onClick={() => setSelectedRange('Rojo')} className={`p-5 rounded-xl shadow-sm cursor-pointer border ${selectedRange === 'Rojo' ? 'bg-red-100 border-red-500' : 'bg-red-50 border-red-200'}`}>
+                              <p className="text-sm font-bold text-red-700 uppercase">Rojo ({'>'}120 días)</p>
+                              <p className="text-2xl font-black text-red-900 mt-1">${data.resumen_morosidad.Rojo_120_mas.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="p-6 bg-blue-50 border border-blue-100 rounded-xl shadow-sm">
+                            <h3 className="text-lg font-bold text-blue-900 mb-3 flex items-center gap-2"><BarChart3 className="w-6 h-6" />Análisis Técnico</h3>
+                            <p className="text-blue-800 text-justify">{data.analisis.tecnico}</p>
+                          </div>
+                          <div className="p-6 bg-red-50 border border-red-100 rounded-xl shadow-sm">
+                            <h3 className="text-lg font-bold text-red-900 mb-3 flex items-center gap-2"><AlertOctagon className="w-6 h-6" />Análisis Fundamental</h3>
+                            <p className="text-red-800 text-justify">{data.analisis.fundamental}</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-8 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                          <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
+                            <h3 className="text-lg font-bold text-slate-800">{tableTitle}</h3>
+                            {selectedRange !== 'Todos' && (<button onClick={() => setSelectedRange('Todos')} className="text-sm text-red-600 font-bold hover:underline">X Borrar filtro</button>)}
+                          </div>
+                          <div className="overflow-x-auto max-h-96 custom-scrollbar">
+                            <table className="w-full text-left border-collapse">
+                              <thead className="sticky top-0 bg-slate-100 shadow-sm z-10">
+                                <tr className="text-slate-600 text-sm uppercase"><th className="p-4 border-b">Cliente</th><th className="p-4 border-b">Deuda</th><th className="p-4 border-b">Criticidad</th></tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {displayedClients.length > 0 ? displayedClients.map((cliente, idx) => (
+                                  <tr key={idx} className="hover:bg-slate-50">
+                                    <td className="p-4 font-bold">{cliente.cliente}</td>
+                                    <td className="p-4">${cliente[valueKey].toLocaleString('es-CO', { minimumFractionDigits: 0 })}</td>
+                                    <td className="p-4"><span className={`text-xs px-3 py-1 rounded-full font-bold border ${cliente.badgeClass}`}>{cliente.criticidad}</span></td>
+                                  </tr>
+                                )) : (<tr><td colSpan="3" className="p-8 text-center text-slate-500">No hay datos.</td></tr>)}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                     </div>
+                   )}
+
+                   {activeTab === 'chart' && (
+                     <div className="space-y-8">
+                        <CustomPieChart summary={data.resumen_morosidad} />
+                        <div className="bg-white border border-red-200 rounded-xl overflow-hidden shadow-sm">
+                          <div className="bg-red-50 p-4 border-b border-red-200">
+                            <h3 className="text-xl font-bold text-red-700 flex items-center gap-2"><AlertCircle className="w-6 h-6" />Clientes Críticos ({'>'} 120 días)</h3>
+                          </div>
+                          <table className="w-full text-left"><thead className="bg-slate-50 text-slate-600 text-sm uppercase"><tr><th className="p-4">Cliente</th><th className="p-4">Deuda</th><th className="p-4">Días Mora</th></tr></thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {data.clientes_criticos.length > 0 ? data.clientes_criticos.map((cliente, idx) => (
+                              <tr key={idx}>
+                                <td className="p-4 font-bold">{cliente.cliente}</td>
+                                <td className="p-4 text-red-600 font-bold">${cliente.total_deuda.toLocaleString('es-CO')}</td>
+                                <td className="p-4 font-bold">{cliente.max_mora} días</td>
+                              </tr>
+                            )) : <tr><td colSpan="3" className="p-4 text-center">Sin críticos.</td></tr>}
+                          </tbody></table>
+                        </div>
+                     </div>
+                   )}
+
                    {activeTab === 'juridico' && (
                      <div className="space-y-8">
                         <div className="bg-white border border-purple-200 rounded-xl overflow-hidden shadow-sm">
@@ -388,28 +467,31 @@
                             <h3 className="text-xl font-bold text-purple-800 flex items-center gap-2"><Scale className="w-6 h-6" />Cobro Jurídico</h3>
                           </div>
                           <table className="w-full text-left">
-                            <thead className="bg-slate-50 text-slate-600 text-sm uppercase">
-                                <tr>
-                                    <th className="p-4">Cliente</th>
-                                    <th className="p-4">Total Adeudado</th>
-                                    <th className="p-4 text-purple-700 font-bold">Proceso</th>
-                                    <th className="p-4">Máx Mora</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-slate-100">
+                              <thead className="bg-slate-50 text-slate-600 text-sm uppercase">
+                                  <tr>
+                                      <th className="p-4">Cliente</th>
+                                      <th className="p-4">Facturas</th>
+                                      <th className="p-4">Valor</th>
+                                      <th className="p-4 text-purple-700 font-bold">Estado Proceso</th> 
+                                      <th className="p-4">Máx Mora</th>
+                                  </tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
                                 {data.clientes_juridico.length > 0 ? data.clientes_juridico.map((cliente, idx) => (
-                                <tr key={idx}>
+                                  <tr key={idx} className="hover:bg-slate-50">
                                     <td className="p-4 font-bold">{cliente.cliente}</td>
+                                    <td className="p-4">{cliente.facturas.join(', ')}</td>
                                     <td className="p-4">${cliente.total_valor.toLocaleString('es-CO')}</td>
-                                    <td className="p-4 font-bold text-purple-600">{cliente.procesos || 'Sin especificar'}</td>
+                                    <td className="p-4 font-bold text-purple-600">{cliente.procesos || 'N/A'}</td>
                                     <td className="p-4 font-bold text-red-600">{cliente.max_mora} días</td>
-                                </tr>
-                                )) : <tr><td colSpan="4" className="p-4 text-center">Sin casos en jurídico.</td></tr>}
-                            </tbody>
+                                  </tr>
+                                )) : <tr><td colSpan="5" className="p-8 text-center">Sin casos en jurídico.</td></tr>}
+                              </tbody>
                           </table>
                         </div>
                      </div>
                    )}
+
                 </div>
               </div>
             </div>
