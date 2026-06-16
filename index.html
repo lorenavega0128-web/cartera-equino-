@@ -37,6 +37,7 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
+        // --- ICONOS NATIVOS ---
         const Icon = ({ path, className }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>
         );
@@ -51,174 +52,441 @@
         const ShieldAlert = (p) => <Icon {...p} path={<><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M12 8v4"/><path d="M12 16h.01"/></>} />;
 
         function App() {
-            const [data, setData] = useState(null);
-            const [loading, setLoading] = useState(true);
-            const [error, setError] = useState(null);
-            const [activeTab, setActiveTab] = useState('analisis');
-            const [selectedRange, setSelectedRange] = useState('Todos');
+          const [data, setData] = useState(null);
+          const [loading, setLoading] = useState(true);
+          const [error, setError] = useState(null);
+          const [activeTab, setActiveTab] = useState('analisis');
+          const [selectedRange, setSelectedRange] = useState('Todos');
 
-            const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRqllr02inUvRyJuHOKiX8lc8XTolV9iQQ7Vo6-uzfANrwDLeKEE5w1WukZfz8iBw/pub?output=csv";
+          const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRqllr02inUvRyJuHOKiX8lc8XTolV9iQQ7Vo6-uzfANrwDLeKEE5w1WukZfz8iBw/pub?output=csv";
 
-            const textAnalisisTecnico = "La cartera muestra una fuerte concentración en los segmentos críticos. La tendencia de morosidad indica un desplazamiento acelerado hacia la franja roja (>120 días), lo que evidencia deterioro en el ciclo de conversión de efectivo. Es imperativo ejecutar planes de contingencia.";
-            const textAnalisisFundamental = "El alto volumen de cartera vencida compromete severamente la liquidez operativa y aumenta el riesgo de incobrabilidad. Se recomienda frenar líneas de crédito a clientes críticos, exigir garantías y negociar reestructuraciones para recuperar los flujos de caja atrapados.";
+          const textAnalisisTecnico = "La cartera muestra una fuerte concentración en los segmentos críticos. La tendencia de morosidad indica un desplazamiento acelerado hacia la franja roja (>120 días), lo que evidencia deterioro en el ciclo de conversión de efectivo. Es imperativo ejecutar planes de contingencia.";
+          const textAnalisisFundamental = "El alto volumen de cartera vencida compromete severamente la liquidez operativa y aumenta el riesgo de incobrabilidad. Se recomienda frenar líneas de crédito a clientes críticos, exigir garantías y negociar reestructuraciones para recuperar los flujos de caja atrapados.";
 
-            const fallbackData = [
-                {"código documento": "CLI-1001", "factura": "F-001", "vencimiento": "2023-09-01", "valor": "25000", "días mora": "150", "estado": "Jurídico", "proceso": "Embargo en curso"},
-                {"código documento": "CLI-1002", "factura": "F-002", "vencimiento": "2023-11-15", "valor": "8500.5", "días mora": "45", "estado": "Normal", "proceso": "N/A"},
-                {"código documento": "CLI-1004", "factura": "F-005", "vencimiento": "2023-08-20", "valor": "35000", "días mora": "165", "estado": "En Legal", "proceso": "Notificación"},
+          const fallbackData = [
+            {"código documento": "CLI-1001", "factura": "F-001", "vencimiento": "2023-09-01", "valor": "25000", "días mora": "150", "estado": "Jurídico"},
+            {"código documento": "CLI-1002", "factura": "F-002", "vencimiento": "2023-11-15", "valor": "8500.5", "días mora": "45", "estado": "Normal"},
+            {"código documento": "CLI-1003", "factura": "F-003", "vencimiento": "2024-01-10", "valor": "4200", "días mora": "15", "estado": "Normal"},
+            {"código documento": "CLI-1001", "factura": "F-004", "vencimiento": "2023-10-05", "valor": "12000", "días mora": "125", "estado": "Normal"},
+            {"código documento": "CLI-1004", "factura": "F-005", "vencimiento": "2023-08-20", "valor": "35000", "días mora": "165", "estado": "En Legal"},
+            {"código documento": "CLI-1005", "factura": "F-006", "vencimiento": "2023-10-30", "valor": "18000", "días mora": "85", "estado": "Normal"}
+          ];
+
+          // Lector CSV mejorado y a prueba de errores
+          function csvToArray(str, delimiter = ",") {
+            const rows = [];
+            let row = [];
+            let current = '';
+            let inQuotes = false;
+            for (let i = 0; i < str.length; i++) {
+                let char = str[i];
+                if (char === '"') {
+                    if (inQuotes && str[i+1] === '"') {
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === delimiter && !inQuotes) {
+                    row.push(current);
+                    current = '';
+                } else if ((char === '\n' || char === '\r') && !inQuotes) {
+                    if (char === '\r' && str[i+1] === '\n') i++;
+                    row.push(current);
+                    rows.push(row);
+                    row = [];
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            row.push(current);
+            rows.push(row);
+            return rows.filter(r => r.length > 0 && r.some(c => c.trim() !== ''));
+          }
+
+          function parseAmount(val) {
+            if (!val) return 0;
+            let s = val.toString().replace(/[$\s]/g, '');
+            const lastComma = s.lastIndexOf(',');
+            const lastDot = s.lastIndexOf('.');
+            if (lastComma > lastDot) {
+              s = s.replace(/\./g, '').replace(',', '.');
+            } else if (lastDot > lastComma) {
+              s = s.replace(/,/g, '');
+            }
+            return parseFloat(s) || 0;
+          }
+
+          const processData = (rawData) => {
+            let summary = { Verde_1_30: 0, Amarillo_31_60: 0, Naranja_61_120: 0, Rojo_120_mas: 0 };
+            let clientsMap = {};
+            let criticalClientsSet = new Set();
+            let casos_juridico = [];
+            let casos_criticos_sin_juridico = [];
+           
+            rawData.forEach(row => {
+              const keys = Object.keys(row);
+              const getVal = (keywords) => {
+                const key = keys.find(k => keywords.some(kw => k.toLowerCase().includes(kw)));
+                return key ? row[key] : null;
+              };
+             
+              const clientId = getVal(['código', 'codigo', 'documento', 'cliente']) || 'Desconocido';
+              const invoice = getVal(['factura', 'doc']) || 'S/N';
+              const daysStr = getVal(['mora', 'días', 'dias', 'vencido']) || '0';
+              const valueStr = getVal(['valor', 'monto', 'saldo']) || '0';
+              const estadoStr = getVal(['juridico', 'jurídico', 'estado', 'legal', 'abogado', 'etapa']) || '';
+             
+              const days = parseInt(daysStr, 10) || 0;
+              const value = parseAmount(valueStr);
+             
+              if (days <= 0) return;
+             
+              const isJuridico = estadoStr.toLowerCase() === 'si' ||
+                                 estadoStr.toLowerCase() === 'sí' ||
+                                 estadoStr.toLowerCase().includes('jur') ||
+                                 estadoStr.toLowerCase().includes('legal') ||
+                                 estadoStr.toLowerCase().includes('abogado');
+             
+              if (days <= 30) summary.Verde_1_30 += value;
+              else if (days <= 60) summary.Amarillo_31_60 += value;
+              else if (days <= 120) summary.Naranja_61_120 += value;
+              else {
+                summary.Rojo_120_mas += value;
+                criticalClientsSet.add(clientId);
+              }
+             
+              if (!clientsMap[clientId]) {
+                clientsMap[clientId] = {
+                  cliente: clientId,
+                  total_deuda: 0,
+                  deuda_verde: 0,
+                  deuda_amarillo: 0,
+                  deuda_naranja: 0,
+                  deuda_rojo: 0,
+                  facturas: [],
+                  max_mora: 0
+                };
+              }
+             
+              clientsMap[clientId].total_deuda += value;
+              if (days <= 30) clientsMap[clientId].deuda_verde += value;
+              else if (days <= 60) clientsMap[clientId].deuda_amarillo += value;
+              else if (days <= 120) clientsMap[clientId].deuda_naranja += value;
+              else clientsMap[clientId].deuda_rojo += value;
+
+              if (days > clientsMap[clientId].max_mora) {
+                clientsMap[clientId].max_mora = days;
+              }
+              clientsMap[clientId].facturas.push({ factura: invoice, dias_mora: days, valor: value });
+
+              if (isJuridico) {
+                casos_juridico.push({ cliente: clientId, factura: invoice, dias_mora: days, valor: value, estado_original: estadoStr });
+              } else if (days > 120 && !isJuridico) {
+                casos_criticos_sin_juridico.push({ cliente: clientId, factura: invoice, dias_mora: days, valor: value, estado_original: estadoStr || 'Normal' });
+              }
+            });
+           
+            const agruparPorCliente = (casos) => {
+              const mapa = {};
+              casos.forEach(c => {
+                if (!mapa[c.cliente]) {
+                  mapa[c.cliente] = { cliente: c.cliente, total_valor: 0, facturas: [], max_mora: 0, estados: new Set() };
+                }
+                mapa[c.cliente].total_valor += c.valor;
+                mapa[c.cliente].facturas.push(c.factura);
+                if (c.dias_mora > mapa[c.cliente].max_mora) mapa[c.cliente].max_mora = c.dias_mora;
+                if (c.estado_original) mapa[c.cliente].estados.add(c.estado_original);
+              });
+              return Object.values(mapa).map(c => ({
+                ...c,
+                estados: Array.from(c.estados).join(', ')
+              })).sort((a, b) => b.total_valor - a.total_valor);
+            };
+
+            const clientes_juridico = agruparPorCliente(casos_juridico);
+            const clientes_criticos_sin_juridico = agruparPorCliente(casos_criticos_sin_juridico);
+
+            const clientes_totales = Object.values(clientsMap).map(c => {
+              let criticidad = 'Verde (1-30)';
+              let badgeClass = 'bg-green-100 text-green-800 border-green-200';
+              if (c.max_mora > 120) { criticidad = 'Rojo (>120)'; badgeClass = 'bg-red-100 text-red-800 border-red-200'; }
+              else if (c.max_mora > 60) { criticidad = 'Naranja (61-120)'; badgeClass = 'bg-orange-100 text-orange-800 border-orange-200'; }
+              else if (c.max_mora > 30) { criticidad = 'Amarillo (31-60)'; badgeClass = 'bg-yellow-100 text-yellow-800 border-yellow-200'; }
+              return { ...c, criticidad, badgeClass };
+            }).sort((a, b) => b.total_deuda - a.total_deuda);
+           
+            const clientes_criticos = clientes_totales.filter(c => criticalClientsSet.has(c.cliente));
+           
+            return {
+              resumen_morosidad: summary,
+              clientes_totales,
+              clientes_criticos,
+              casos_juridico,
+              casos_criticos_sin_juridico,
+              clientes_juridico,
+              clientes_criticos_sin_juridico,
+              analisis: {
+                tecnico: textAnalisisTecnico,
+                fundamental: textAnalisisFundamental
+              }
+            };
+          };
+
+          const fetchData = async () => {
+            setLoading(true);
+            setError(null);
+            try {
+              const response = await fetch(CSV_URL);
+              if (!response.ok) throw new Error("Acceso denegado al archivo Drive.");
+              const csvText = await response.text();
+              const rows = csvToArray(csvText);
+             
+              if (rows.length < 2) throw new Error("El archivo CSV no tiene datos suficientes.");
+
+              const headers = rows[0].map(h => h ? h.trim().toLowerCase() : '');
+              const jsonData = rows.slice(1).map(row => {
+                 let obj = {};
+                 headers.forEach((h, i) => { if(h) obj[h] = row[i]; });
+                 return obj;
+              });
+             
+              setData(processData(jsonData));
+            } catch (err) {
+              console.warn("Usando datos de respaldo:", err);
+              setData(processData(fallbackData));
+              setError("No se pudo leer el enlace de Google Drive. Mostrando datos de respaldo simulados.");
+            } finally {
+              setLoading(false);
+            }
+          };
+
+          useEffect(() => {
+            fetchData();
+          }, []);
+
+          let displayedClients = [];
+          let tableTitle = "Listado General de Clientes";
+          let valueKey = 'total_deuda';
+
+          if (data) {
+            if (selectedRange === 'Verde') {
+              displayedClients = data.clientes_totales.filter(c => c.deuda_verde > 0).sort((a,b) => b.deuda_verde - a.deuda_verde);
+              tableTitle = "Clientes sumando al rango Verde (1-30 días)";
+              valueKey = 'deuda_verde';
+            } else if (selectedRange === 'Amarillo') {
+              displayedClients = data.clientes_totales.filter(c => c.deuda_amarillo > 0).sort((a,b) => b.deuda_amarillo - a.deuda_amarillo);
+              tableTitle = "Clientes sumando al rango Amarillo (31-60 días)";
+              valueKey = 'deuda_amarillo';
+            } else if (selectedRange === 'Naranja') {
+              displayedClients = data.clientes_totales.filter(c => c.deuda_naranja > 0).sort((a,b) => b.deuda_naranja - a.deuda_naranja);
+              tableTitle = "Clientes sumando al rango Naranja (61-120 días)";
+              valueKey = 'deuda_naranja';
+            } else if (selectedRange === 'Rojo') {
+              displayedClients = data.clientes_totales.filter(c => c.deuda_rojo > 0).sort((a,b) => b.deuda_rojo - a.deuda_rojo);
+              tableTitle = "Clientes sumando al rango Rojo (>120 días)";
+              valueKey = 'deuda_rojo';
+            } else {
+              displayedClients = data.clientes_totales;
+            }
+          }
+
+          const CustomPieChart = ({ summary }) => {
+            const chartData = [
+              { name: 'Verde', value: summary.Verde_1_30, fill: '#22c55e' },
+              { name: 'Amarillo', value: summary.Amarillo_31_60, fill: '#eab308' },
+              { name: 'Naranja', value: summary.Naranja_61_120, fill: '#f97316' },
+              { name: 'Rojo', value: summary.Rojo_120_mas, fill: '#ef4444' }
             ];
 
-            function csvToArray(str, delimiter = ",") {
-                const rows = []; let row = []; let current = ''; let inQuotes = false;
-                for (let i = 0; i < str.length; i++) {
-                    let char = str[i];
-                    if (char === '"') { inQuotes = !inQuotes; }
-                    else if (char === delimiter && !inQuotes) { row.push(current); current = ''; }
-                    else if ((char === '\n' || char === '\r') && !inQuotes) { if (char === '\r' && str[i+1] === '\n') i++; row.push(current); rows.push(row); row = []; current = ''; }
-                    else { current += char; }
-                }
-                row.push(current); rows.push(row);
-                return rows.filter(r => r.length > 0 && r.some(c => c.trim() !== ''));
-            }
+            const total = chartData.reduce((acc, d) => acc + d.value, 0);
+            let cumulativeValue = 0;
 
-            function parseAmount(val) {
-                if (!val) return 0;
-                let s = val.toString().replace(/[$\s]/g, '');
-                const lastComma = s.lastIndexOf(','); const lastDot = s.lastIndexOf('.');
-                if (lastComma > lastDot) s = s.replace(/\./g, '').replace(',', '.');
-                else if (lastDot > lastComma) s = s.replace(/,/g, '');
-                return parseFloat(s) || 0;
-            }
-
-            const processData = (rawData) => {
-                let summary = { Verde_1_30: 0, Amarillo_31_60: 0, Naranja_61_120: 0, Rojo_120_mas: 0 };
-                let clientsMap = {};
-                let criticalClientsSet = new Set();
-                let casos_juridico = [];
-                
-                rawData.forEach(row => {
-                    const keys = Object.keys(row);
-                    const getVal = (keywords) => {
-                        const key = keys.find(k => keywords.some(kw => k.toLowerCase().includes(kw)));
-                        return key ? row[key] : null;
-                    };
-                    
-                    const clientId = getVal(['código', 'codigo', 'documento', 'cliente']) || 'Desconocido';
-                    const invoice = getVal(['factura', 'doc']) || 'S/N';
-                    const days = parseInt(getVal(['mora', 'días', 'dias', 'vencido']) || '0', 10) || 0;
-                    const value = parseAmount(getVal(['valor', 'monto', 'saldo']) || '0');
-                    const estadoStr = getVal(['juridico', 'jurídico', 'estado', 'legal', 'abogado', 'etapa']) || '';
-                    const procesoStr = getVal(['proceso', 'etapa proceso']) || 'Sin definir';
-                    
-                    if (days <= 0) return;
-                    
-                    const isJuridico = estadoStr.toLowerCase().includes('jur') || estadoStr.toLowerCase().includes('legal') || estadoStr.toLowerCase().includes('abogado');
-                    
-                    if (days <= 30) summary.Verde_1_30 += value;
-                    else if (days <= 60) summary.Amarillo_31_60 += value;
-                    else if (days <= 120) summary.Naranja_61_120 += value;
-                    else { summary.Rojo_120_mas += value; criticalClientsSet.add(clientId); }
-                    
-                    if (!clientsMap[clientId]) {
-                        clientsMap[clientId] = { cliente: clientId, total_deuda: 0, max_mora: 0, facturas: [] };
-                    }
-                    clientsMap[clientId].total_deuda += value;
-                    if (days > clientsMap[clientId].max_mora) clientsMap[clientId].max_mora = days;
-
-                    if (isJuridico) {
-                        casos_juridico.push({ cliente: clientId, factura: invoice, dias_mora: days, valor: value, proceso: procesoStr });
-                    }
-                });
-                
-                return {
-                    resumen_morosidad: summary,
-                    clientes_totales: Object.values(clientsMap).sort((a, b) => b.total_deuda - a.total_deuda),
-                    clientes_criticos: Object.values(clientsMap).filter(c => criticalClientsSet.has(c.cliente)),
-                    casos_juridico: casos_juridico,
-                    analisis: { tecnico: textAnalisisTecnico, fundamental: textAnalisisFundamental }
-                };
-            };
-
-            const fetchData = async () => {
-                setLoading(true);
-                try {
-                    const response = await fetch(CSV_URL);
-                    const csvText = await response.text();
-                    const rows = csvToArray(csvText);
-                    const headers = rows[0].map(h => h.trim().toLowerCase());
-                    const jsonData = rows.slice(1).map(row => {
-                        let obj = {}; headers.forEach((h, i) => { if(h) obj[h] = row[i]; });
-                        return obj;
-                    });
-                    setData(processData(jsonData));
-                } catch (err) {
-                    setData(processData(fallbackData));
-                    setError("Usando datos de respaldo.");
-                } finally { setLoading(false); }
-            };
-
-            useEffect(() => { fetchData(); }, []);
-
-            if (loading && !data) return <div className="p-20 text-center">Cargando sistema...</div>;
-            if (!data) return null;
+            if (total === 0) return <div className="text-gray-500 py-10 text-center">No hay datos para graficar.</div>;
 
             return (
-                <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900">
-                    <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
-                        <div className="bg-slate-900 text-white p-6 md:p-8 flex justify-between items-center">
-                            <h1 className="text-3xl font-bold">CARTERA EQUINO</h1>
-                            <button onClick={fetchData} className="bg-blue-600 px-5 py-2 rounded-lg font-bold">Sincronizar</button>
-                        </div>
+              <div className="flex flex-col md:flex-row items-center justify-center gap-10 p-8 bg-white border border-gray-200 rounded-xl shadow-sm">
+                <svg viewBox="-1.2 -1.2 2.4 2.4" className="w-64 h-64 transform -rotate-90">
+                  {chartData.map(slice => {
+                    if (slice.value === 0) return null;
+                    if (slice.value === total) {
+                       return <circle r="1" cx="0" cy="0" fill={slice.fill} key={slice.name} />
+                    }
+                    const startPercent = cumulativeValue / total;
+                    const endPercent = (cumulativeValue + slice.value) / total;
+                    cumulativeValue += slice.value;
 
-                        <div className="flex border-b border-gray-200 px-6 pt-6 gap-8 bg-slate-50">
-                            <button className={`pb-4 font-semibold ${activeTab === 'analisis' ? 'border-b-4 border-blue-600' : ''}`} onClick={() => setActiveTab('analisis')}>Análisis</button>
-                            <button className={`pb-4 font-semibold ${activeTab === 'juridico' ? 'border-b-4 border-purple-600' : ''}`} onClick={() => setActiveTab('juridico')}>Estado Jurídico</button>
-                        </div>
+                    const startX = Math.cos(2 * Math.PI * startPercent);
+                    const startY = Math.sin(2 * Math.PI * startPercent);
+                    const endX = Math.cos(2 * Math.PI * endPercent);
+                    const endY = Math.sin(2 * Math.PI * endPercent);
 
-                        <div className="p-6 md:p-8">
-                            {activeTab === 'analisis' && (
-                                <div>
-                                    <h2 className="text-2xl font-bold mb-6">Resumen General</h2>
-                                    {/* (El resto de tu lógica de análisis se mantiene igual) */}
-                                </div>
-                            )}
+                    const largeArcFlag = slice.value / total > 0.5 ? 1 : 0;
+                    const pathData = `M ${startX} ${startY} A 1 1 0 ${largeArcFlag} 1 ${endX} ${endY} L 0 0 Z`;
 
-                            {activeTab === 'juridico' && (
-                                <div className="bg-white border border-purple-200 rounded-xl overflow-hidden shadow-sm">
-                                    <div className="bg-purple-50 p-4 border-b border-purple-200">
-                                        <h3 className="text-xl font-bold text-purple-800">Detalle de Cobro Jurídico</h3>
-                                    </div>
-                                    <div className="overflow-x-auto">
-                                        <table className="w-full text-left">
-                                            <thead className="bg-slate-50 text-slate-600 text-sm uppercase">
-                                                <tr>
-                                                    <th className="p-4 border-b">Cliente</th>
-                                                    <th className="p-4 border-b">Factura</th>
-                                                    <th className="p-4 border-b">Valor</th>
-                                                    <th className="p-4 border-b font-bold text-purple-700">Estado Proceso</th>
-                                                </tr>
-                                            </thead>
-                                            <tbody className="divide-y divide-slate-100">
-                                                {data.casos_juridico.map((caso, idx) => (
-                                                    <tr key={idx} className="hover:bg-slate-50">
-                                                        <td className="p-4 font-bold">{caso.cliente}</td>
-                                                        <td className="p-4">{caso.factura}</td>
-                                                        <td className="p-4">${caso.valor.toLocaleString('es-CO')}</td>
-                                                        <td className="p-4 font-bold text-purple-600 bg-purple-50 rounded-lg">{caso.proceso}</td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
-                                    </div>
-                                </div>
-                            )}
-                        </div>
+                    return <path d={pathData} fill={slice.fill} key={slice.name} className="hover:opacity-80" />;
+                  })}
+                </svg>
+                <div className="flex flex-col gap-4">
+                  <h3 className="text-lg font-bold text-slate-800 border-b pb-2">Distribución de Cartera</h3>
+                  {chartData.map(slice => (
+                    <div key={slice.name} className="flex items-center gap-3">
+                      <div className="w-5 h-5 rounded-md" style={{ backgroundColor: slice.fill }}></div>
+                      <span className="font-semibold w-20 text-slate-700">{slice.name}:</span>
+                      <span className="text-slate-900">${slice.value.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</span>
+                      <span className="text-sm font-bold text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                        {((slice.value / total) * 100).toFixed(1)}%
+                      </span>
                     </div>
+                  ))}
                 </div>
+              </div>
             );
+          };
+
+          if (loading && !data) return null; // La pantalla de carga principal está en el HTML
+          if (!data) return null;
+
+          return (
+            <div className="min-h-screen bg-slate-50 p-4 md:p-8 font-sans text-slate-900">
+              <div className="max-w-6xl mx-auto bg-white rounded-2xl shadow-xl overflow-hidden border border-slate-200">
+               
+                <div className="bg-slate-900 text-white p-6 md:p-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+                  <div>
+                    <h1 className="text-3xl font-bold tracking-tight">CARTERA EQUINO</h1>
+                    <p className="text-slate-400 mt-1">Análisis de criticidad y clasificación de morosidad</p>
+                  </div>
+                  <button onClick={fetchData} disabled={loading} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-500 text-white px-5 py-2.5 rounded-lg font-semibold transition-all shadow-md">
+                    <RefreshCw className={`w-5 h-5 ${loading ? 'animate-spin' : ''}`} />
+                    Sincronizar
+                  </button>
+                </div>
+
+                {error && (
+                  <div className="bg-amber-50 border-l-4 border-amber-500 text-amber-800 p-4 mx-6 mt-6 rounded-r flex gap-3 shadow-sm">
+                     <AlertCircle className="w-6 h-6 shrink-0 text-amber-500" />
+                     <p className="text-sm font-medium">{error}</p>
+                  </div>
+                )}
+
+                <div className="flex border-b border-gray-200 px-6 pt-6 gap-8 bg-slate-50">
+                  <button className={`pb-4 font-semibold flex items-center gap-2 text-lg transition-colors ${activeTab === 'analisis' ? 'border-b-4 border-blue-600 text-blue-700' : 'text-slate-500 hover:text-slate-700'}`} onClick={() => setActiveTab('analisis')}><FileJson className="w-6 h-6" />Análisis</button>
+                  <button className={`pb-4 font-semibold flex items-center gap-2 text-lg transition-colors ${activeTab === 'chart' ? 'border-b-4 border-blue-600 text-blue-700' : 'text-slate-500 hover:text-slate-700'}`} onClick={() => setActiveTab('chart')}><PieChart className="w-6 h-6" />Gráfica</button>
+                  <button className={`pb-4 font-semibold flex items-center gap-2 text-lg transition-colors ${activeTab === 'juridico' ? 'border-b-4 border-purple-600 text-purple-700' : 'text-slate-500 hover:text-slate-700'}`} onClick={() => setActiveTab('juridico')}><Scale className="w-6 h-6" />Estado Jurídico</button>
+                </div>
+
+                <div className="p-6 md:p-8">
+                   
+                   {activeTab === 'analisis' && (
+                     <div className="space-y-6">
+                        <div className="mb-2">
+                          <h3 className="text-xl font-bold text-slate-800 mb-4">Resumen de Totalidad por Rangos</h3>
+                          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                            <div onClick={() => setSelectedRange('Verde')} className={`p-5 rounded-xl shadow-sm cursor-pointer border ${selectedRange === 'Verde' ? 'bg-green-100 border-green-500' : 'bg-green-50 border-green-200'}`}>
+                              <p className="text-sm font-bold text-green-700 uppercase">Verde (1-30 días)</p>
+                              <p className="text-2xl font-black text-green-900 mt-1">${data.resumen_morosidad.Verde_1_30.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</p>
+                            </div>
+                            <div onClick={() => setSelectedRange('Amarillo')} className={`p-5 rounded-xl shadow-sm cursor-pointer border ${selectedRange === 'Amarillo' ? 'bg-yellow-100 border-yellow-500' : 'bg-yellow-50 border-yellow-200'}`}>
+                              <p className="text-sm font-bold text-yellow-700 uppercase">Amarillo (31-60 días)</p>
+                              <p className="text-2xl font-black text-yellow-900 mt-1">${data.resumen_morosidad.Amarillo_31_60.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</p>
+                            </div>
+                            <div onClick={() => setSelectedRange('Naranja')} className={`p-5 rounded-xl shadow-sm cursor-pointer border ${selectedRange === 'Naranja' ? 'bg-orange-100 border-orange-500' : 'bg-orange-50 border-orange-200'}`}>
+                              <p className="text-sm font-bold text-orange-700 uppercase">Naranja (61-120 días)</p>
+                              <p className="text-2xl font-black text-orange-900 mt-1">${data.resumen_morosidad.Naranja_61_120.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</p>
+                            </div>
+                            <div onClick={() => setSelectedRange('Rojo')} className={`p-5 rounded-xl shadow-sm cursor-pointer border ${selectedRange === 'Rojo' ? 'bg-red-100 border-red-500' : 'bg-red-50 border-red-200'}`}>
+                              <p className="text-sm font-bold text-red-700 uppercase">Rojo ({'>'}120 días)</p>
+                              <p className="text-2xl font-black text-red-900 mt-1">${data.resumen_morosidad.Rojo_120_mas.toLocaleString('es-CO', { minimumFractionDigits: 0 })}</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="p-6 bg-blue-50 border border-blue-100 rounded-xl shadow-sm">
+                            <h3 className="text-lg font-bold text-blue-900 mb-3 flex items-center gap-2"><BarChart3 className="w-6 h-6" />Análisis Técnico</h3>
+                            <p className="text-blue-800 text-justify">{data.analisis.tecnico}</p>
+                          </div>
+                          <div className="p-6 bg-red-50 border border-red-100 rounded-xl shadow-sm">
+                            <h3 className="text-lg font-bold text-red-900 mb-3 flex items-center gap-2"><AlertOctagon className="w-6 h-6" />Análisis Fundamental</h3>
+                            <p className="text-red-800 text-justify">{data.analisis.fundamental}</p>
+                          </div>
+                        </div>
+
+                        <div className="mt-8 bg-white border border-slate-200 rounded-xl overflow-hidden shadow-sm">
+                          <div className="bg-slate-50 p-4 border-b border-slate-200 flex justify-between items-center">
+                            <h3 className="text-lg font-bold text-slate-800">{tableTitle}</h3>
+                            {selectedRange !== 'Todos' && (<button onClick={() => setSelectedRange('Todos')} className="text-sm text-red-600 font-bold hover:underline">X Borrar filtro</button>)}
+                          </div>
+                          <div className="overflow-x-auto max-h-96 custom-scrollbar">
+                            <table className="w-full text-left border-collapse">
+                              <thead className="sticky top-0 bg-slate-100 shadow-sm z-10">
+                                <tr className="text-slate-600 text-sm uppercase"><th className="p-4 border-b">Cliente</th><th className="p-4 border-b">Deuda</th><th className="p-4 border-b">Criticidad</th></tr>
+                              </thead>
+                              <tbody className="divide-y divide-slate-100">
+                                {displayedClients.length > 0 ? displayedClients.map((cliente, idx) => (
+                                  <tr key={idx} className="hover:bg-slate-50">
+                                    <td className="p-4 font-bold">{cliente.cliente}</td>
+                                    <td className="p-4">${cliente[valueKey].toLocaleString('es-CO', { minimumFractionDigits: 0 })}</td>
+                                    <td className="p-4"><span className={`text-xs px-3 py-1 rounded-full font-bold border ${cliente.badgeClass}`}>{cliente.criticidad}</span></td>
+                                  </tr>
+                                )) : (<tr><td colSpan="3" className="p-8 text-center text-slate-500">No hay datos.</td></tr>)}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                     </div>
+                   )}
+
+                   {activeTab === 'chart' && (
+                     <div className="space-y-8">
+                        <CustomPieChart summary={data.resumen_morosidad} />
+                        <div className="bg-white border border-red-200 rounded-xl overflow-hidden shadow-sm">
+                          <div className="bg-red-50 p-4 border-b border-red-200">
+                            <h3 className="text-xl font-bold text-red-700 flex items-center gap-2"><AlertCircle className="w-6 h-6" />Clientes Críticos ({'>'} 120 días)</h3>
+                          </div>
+                          <table className="w-full text-left"><thead className="bg-slate-50 text-slate-600 text-sm uppercase"><tr><th className="p-4">Cliente</th><th className="p-4">Deuda</th><th className="p-4">Días Mora</th></tr></thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {data.clientes_criticos.length > 0 ? data.clientes_criticos.map((cliente, idx) => (
+                              <tr key={idx}>
+                                <td className="p-4 font-bold">{cliente.cliente}</td>
+                                <td className="p-4 text-red-600 font-bold">${cliente.total_deuda.toLocaleString('es-CO')}</td>
+                                <td className="p-4 font-bold">{cliente.max_mora} días</td>
+                              </tr>
+                            )) : <tr><td colSpan="3" className="p-4 text-center">Sin críticos.</td></tr>}
+                          </tbody></table>
+                        </div>
+                     </div>
+                   )}
+
+                   {activeTab === 'juridico' && (
+                     <div className="space-y-8">
+                        <div className="bg-white border border-purple-200 rounded-xl overflow-hidden shadow-sm">
+                          <div className="bg-purple-50 p-4 border-b border-purple-200">
+                            <h3 className="text-xl font-bold text-purple-800 flex items-center gap-2"><Scale className="w-6 h-6" />Cobro Jurídico</h3>
+                          </div>
+                          <table className="w-full text-left"><thead className="bg-slate-50 text-slate-600 text-sm uppercase"><tr><th className="p-4">Cliente</th><th className="p-4">Total Adeudado</th><th className="p-4">Máx Mora</th></tr></thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {data.clientes_juridico.length > 0 ? data.clientes_juridico.map((cliente, idx) => (
+                              <tr key={idx}>
+                                <td className="p-4 font-bold">{cliente.cliente}</td>
+                                <td className="p-4">${cliente.total_valor.toLocaleString('es-CO')}</td>
+                                <td className="p-4 font-bold text-red-600">{cliente.max_mora} días</td>
+                              </tr>
+                            )) : <tr><td colSpan="3" className="p-4 text-center">Sin jurídico.</td></tr>}
+                          </tbody></table>
+                        </div>
+                     </div>
+                   )}
+
+                </div>
+              </div>
+            </div>
+          );
         }
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
+        const rootEl = document.getElementById('root');
+        const root = ReactDOM.createRoot(rootEl);
         root.render(<App />);
     </script>
 </body>
