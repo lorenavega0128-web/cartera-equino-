@@ -37,7 +37,6 @@
     <script type="text/babel">
         const { useState, useEffect } = React;
 
-        // --- ICONOS NATIVOS ---
         const Icon = ({ path, className }) => (
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}>{path}</svg>
         );
@@ -136,7 +135,7 @@
               const daysStr = getVal(['mora', 'días', 'dias', 'vencido']) || '0';
               const valueStr = getVal(['valor', 'monto', 'saldo']) || '0';
               const estadoStr = getVal(['juridico', 'jurídico', 'estado', 'legal', 'abogado', 'etapa']) || '';
-              const procesoStr = getVal(['proceso', 'etapa proceso']) || 'Sin especificar'; // <-- EXTRAYENDO PROCESO
+              const procesoStr = getVal(['proceso', 'etapa proceso']) || 'Sin especificar';
               
               const days = parseInt(daysStr, 10) || 0;
               const value = parseAmount(valueStr);
@@ -182,7 +181,7 @@
               clientsMap[clientId].facturas.push({ factura: invoice, dias_mora: days, valor: value });
 
               if (isJuridico) {
-                casos_juridico.push({ cliente: clientId, factura: invoice, dias_mora: days, valor: value, estado_original: estadoStr, proceso: procesoStr }); // <-- PASANDO PROCESO
+                casos_juridico.push({ cliente: clientId, factura: invoice, dias_mora: days, valor: value, estado_original: estadoStr, proceso: procesoStr });
               } else if (days > 120 && !isJuridico) {
                 casos_criticos_sin_juridico.push({ cliente: clientId, factura: invoice, dias_mora: days, valor: value, estado_original: estadoStr || 'Normal' });
               }
@@ -240,7 +239,9 @@
             setLoading(true);
             setError(null);
             try {
-              const response = await fetch(CSV_URL);
+              // --- SOLUCIÓN: El &t=${new Date().getTime()} obliga a buscar datos nuevos ---
+              const response = await fetch(`${CSV_URL}&t=${new Date().getTime()}`, { cache: 'no-store' });
+              
               if (!response.ok) throw new Error("Acceso denegado al archivo Drive.");
               const csvText = await response.text();
               const rows = csvToArray(csvText);
@@ -466,28 +467,18 @@
                           <div className="bg-purple-50 p-4 border-b border-purple-200">
                             <h3 className="text-xl font-bold text-purple-800 flex items-center gap-2"><Scale className="w-6 h-6" />Cobro Jurídico</h3>
                           </div>
-                          <table className="w-full text-left">
-                              <thead className="bg-slate-50 text-slate-600 text-sm uppercase">
-                                  <tr>
-                                      <th className="p-4">Cliente</th>
-                                      <th className="p-4">Facturas</th>
-                                      <th className="p-4">Valor</th>
-                                      <th className="p-4 text-purple-700 font-bold">Estado Proceso</th> 
-                                      <th className="p-4">Máx Mora</th>
-                                  </tr>
-                              </thead>
-                              <tbody className="divide-y divide-slate-100">
-                                {data.clientes_juridico.length > 0 ? data.clientes_juridico.map((cliente, idx) => (
-                                  <tr key={idx} className="hover:bg-slate-50">
-                                    <td className="p-4 font-bold">{cliente.cliente}</td>
-                                    <td className="p-4">{cliente.facturas.join(', ')}</td>
-                                    <td className="p-4">${cliente.total_valor.toLocaleString('es-CO')}</td>
-                                    <td className="p-4 font-bold text-purple-600">{cliente.procesos || 'N/A'}</td>
-                                    <td className="p-4 font-bold text-red-600">{cliente.max_mora} días</td>
-                                  </tr>
-                                )) : <tr><td colSpan="5" className="p-8 text-center">Sin casos en jurídico.</td></tr>}
-                              </tbody>
-                          </table>
+                          <table className="w-full text-left"><thead className="bg-slate-50 text-slate-600 text-sm uppercase"><tr><th className="p-4">Cliente</th><th className="p-4">Facturas</th><th className="p-4 text-purple-700 font-bold">Proceso</th><th className="p-4">Valor</th><th className="p-4">Máx Mora</th></tr></thead>
+                          <tbody className="divide-y divide-slate-100">
+                            {data.clientes_juridico.length > 0 ? data.clientes_juridico.map((cliente, idx) => (
+                              <tr key={idx}>
+                                <td className="p-4 font-bold">{cliente.cliente}</td>
+                                <td className="p-4">{cliente.facturas.join(', ')}</td>
+                                <td className="p-4 font-bold text-purple-600">{cliente.procesos || 'Sin especificar'}</td>
+                                <td className="p-4">${cliente.total_valor.toLocaleString('es-CO')}</td>
+                                <td className="p-4 font-bold text-red-600">{cliente.max_mora} días</td>
+                              </tr>
+                            )) : <tr><td colSpan="5" className="p-4 text-center">Sin casos en jurídico.</td></tr>}
+                          </tbody></table>
                         </div>
                      </div>
                    )}
