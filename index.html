@@ -6,61 +6,54 @@
     <title>Cartera Equino</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-50 min-h-screen p-6">
+<body class="bg-slate-50 min-h-screen p-4 md:p-8">
 
-    <!-- Contenedor Principal -->
-    <div class="max-w-4xl mx-auto">
-        <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 text-center">
-            <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">CARTERA EQUINO</h1>
-            <p id="status" class="mt-4 text-slate-600 text-lg">Conectando con la base de datos...</p>
-            
-            <div id="data-container" class="mt-8">
-                <!-- Aquí aparecerán los datos cargados -->
-                <div class="animate-pulse space-y-4">
-                    <div class="h-4 bg-slate-200 rounded w-3/4 mx-auto"></div>
-                    <div class="h-4 bg-slate-200 rounded w-1/2 mx-auto"></div>
-                </div>
-            </div>
+    <div class="max-w-6xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-xl border border-slate-200">
+        <h1 class="text-3xl md:text-4xl font-extrabold text-slate-900 tracking-tight text-center">CARTERA EQUINO</h1>
+        <p id="status" class="mt-4 text-green-600 font-bold text-center">Datos cargados exitosamente.</p>
+        
+        <div id="data-container" class="mt-8 overflow-x-auto">
+            <!-- La tabla se cargará aquí -->
         </div>
     </div>
 
     <script>
-        // URL de tu CSV (Google Sheets)
         const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTvS_GNlePDLV0i10lt51vBawTRbEWfprJ_-eKsnsy-AQbt_6fY-Mabz0jhSQ8lmfL4ltG7BJyRCgQo/pub?output=csv";
 
         async function loadData() {
             try {
                 const response = await fetch(CSV_URL);
                 const data = await response.text();
-                
-                // Procesar CSV a array simple
-                const rows = data.split('\n').map(row => row.split(','));
+                const rows = data.split('\n').filter(row => row.trim() !== '');
                 
                 const container = document.getElementById('data-container');
-                const status = document.getElementById('status');
                 
-                status.innerText = "Datos cargados exitosamente.";
-                status.className = "mt-4 text-green-600 font-bold";
-
-                // Generar tabla de datos
-                let html = '<div class="overflow-x-auto"><table class="w-full text-left border-collapse">';
+                let html = '<table class="w-full text-left border-collapse">';
+                
                 rows.forEach((row, index) => {
-                    html += `<tr class="${index === 0 ? 'bg-slate-100 font-bold' : 'border-b'}">`;
-                    row.forEach(cell => {
-                        html += `<td class="p-3 text-sm">${cell}</td>`;
-                    });
-                    html += '</tr>';
+                    // Separamos por comas considerando posibles comillas
+                    const cells = row.split(',').map(cell => cell.replace(/^"|"$/g, ''));
+                    
+                    if (index === 0) {
+                        html += '<thead class="bg-slate-100 border-b-2 border-slate-200">';
+                        html += '<tr>';
+                        cells.forEach(header => html += `<th class="p-4 font-bold text-slate-700">${header}</th>`);
+                        html += '</tr></thead><tbody>';
+                    } else {
+                        html += '<tr class="border-b hover:bg-slate-50">';
+                        cells.forEach(cell => html += `<td class="p-4 text-sm text-slate-600">${cell}</td>`);
+                        html += '</tr>';
+                    }
                 });
-                html += '</table></div>';
                 
+                html += '</tbody></table>';
                 container.innerHTML = html;
             } catch (err) {
-                document.getElementById('status').innerText = "Error al conectar con los datos.";
-                document.getElementById('status').className = "mt-4 text-red-600 font-bold";
+                document.getElementById('status').innerText = "Error al cargar los datos.";
+                document.getElementById('status').className = "mt-4 text-red-600 font-bold text-center";
             }
         }
 
-        // Ejecutar carga al abrir
         window.onload = loadData;
     </script>
 </body>
