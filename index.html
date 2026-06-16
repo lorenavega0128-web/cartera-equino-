@@ -10,12 +10,33 @@ export default function App() {
 
   const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRqllr02inUvRyJuHOKiX8lc8XTolV9iQQ7Vo6-uzfANrwDLeKEE5w1WukZfz8iBw/pub?output=csv";
 
-  // ... (textAnalisisTecnico y textAnalisisFundamental permanecen iguales)
+  const textAnalisisTecnico = "La cartera muestra una fuerte concentración en los segmentos críticos. La tendencia de morosidad indica un desplazamiento acelerado hacia la franja roja (>120 días), lo que evidencia deterioro en el ciclo de conversión de efectivo. Es imperativo ejecutar planes de contingencia.";
+  const textAnalisisFundamental = "El alto volumen de cartera vencida compromete severamente la liquidez operativa y aumenta el riesgo de incobrabilidad. Se recomienda frenar líneas de crédito a clientes críticos, exigir garantías y negociar reestructuraciones para recuperar los flujos de caja atrapados.";
+
+  function csvToArray(text) {
+    let p = '', row = [''], ret = [row], i = 0, r = 0, s = !0, l;
+    for (l of text) {
+      if ('"' === l) { if (s && l === p) row[i] += l; s = !s; }
+      else if (',' === l && s) l = row[++i] = '';
+      else if ('\n' === l && s) { if ('\r' === p) row[i] = row[i].slice(0, -1); row = ret[++r] = [l = '']; i = 0; }
+      else row[i] += l;
+      p = l;
+    }
+    return ret.filter(r => r.length > 0 && r[0] !== '');
+  }
+
+  function parseAmount(val) {
+    if (!val) return 0;
+    let s = val.toString().replace(/[$\s]/g, '');
+    const lastComma = s.lastIndexOf(','), lastDot = s.lastIndexOf('.');
+    if (lastComma > lastDot) s = s.replace(/\./g, '').replace(',', '.');
+    else if (lastDot > lastComma) s = s.replace(/,/g, '');
+    return parseFloat(s) || 0;
+  }
 
   const processData = (rawData) => {
     let summary = { Verde_1_30: 0, Amarillo_31_60: 0, Naranja_61_120: 0, Rojo_120_mas: 0 };
-    let clientsMap = {};
-    let casos_juridico = [];
+    let clientsMap = {}, criticalClientsSet = new Set(), casos_juridico = [];
     
     rawData.forEach(row => {
       const keys = Object.keys(row);
@@ -26,64 +47,89 @@ export default function App() {
      
       const clientId = getVal(['código', 'codigo', 'documento', 'cliente']) || 'Desconocido';
       const invoice = getVal(['factura', 'doc']) || 'S/N';
-      const daysStr = getVal(['mora', 'días', 'dias', 'vencido']) || '0';
-      const valueStr = getVal(['valor', 'monto', 'saldo']) || '0';
+      const days = parseInt(getVal(['mora', 'días', 'dias', 'vencido']) || '0', 10) || 0;
+      const value = parseAmount(getVal(['valor', 'monto', 'saldo']) || '0');
       const estadoStr = getVal(['juridico', 'jurídico', 'estado', 'legal', 'abogado', 'etapa']) || '';
-      // AQUÍ: Capturamos la columna 'proceso'
-      const procesoStr = getVal(['proceso', 'detalle proceso', 'etapa proceso']) || 'Sin proceso';
+      const procesoStr = getVal(['proceso', 'detalle']) || 'En trámite';
      
-      const days = parseInt(daysStr, 10) || 0;
-      const value = parseAmount(valueStr);
-      
       if (days <= 0) return;
-
+      
       const isJuridico = estadoStr.toLowerCase().includes('jur') || estadoStr.toLowerCase().includes('legal');
      
-      // ... (mantén tu lógica de summary y clientsMap igual)
+      if (days <= 30) summary.Verde_1_30 += value;
+      else if (days <= 60) summary.Amarillo_31_60 += value;
+      else if (days <= 120) summary.Naranja_61_120 += value;
+      else { summary.Rojo_120_mas += value; criticalClientsSet.add(clientId); }
+      
+      if (!clientsMap[clientId]) clientsMap[clientId] = { cliente: clientId, total_deuda: 0, deuda_verde: 0, deuda_amarillo: 0, deuda_naranja: 0, deuda_rojo: 0, facturas: [], max_mora: 0 };
+      clientsMap[clientId].total_deuda += value;
+      if (days <= 30) clientsMap[clientId].deuda_verde += value;
+      else if (days <= 60) clientsMap[clientId].deuda_amarillo += value;
+      else if (days <= 120) clientsMap[clientId].deuda_naranja += value;
+      else clientsMap[clientId].deuda_rojo += value;
+      if (days > clientsMap[clientId].max_mora) clientsMap[clientId].max_mora = days;
+      clientsMap[clientId].facturas.push({ factura: invoice, dias_mora: days, valor: value });
 
-      if (isJuridico) {
-        casos_juridico.push({ 
-            cliente: clientId, 
-            factura: invoice, 
-            dias_mora: days, 
-            valor: value, 
-            estado_original: estadoStr,
-            proceso: procesoStr // Guardamos el proceso aquí
-        });
-      }
+      if (isJuridico) casos_juridico.push({ cliente: clientId, factura: invoice, dias_mora: days, valor: value, proceso: procesoStr });
     });
     
-    // ... (restos de funciones auxiliares como agruparPorCliente)
-    
-    return { /* ... todos los datos, asegurando incluir clientes_juridico con la propiedad 'proceso' */ };
+    const agruparPorCliente = (casos) => {
+      const mapa = {};
+      casos.forEach(c => {
+        if (!mapa[c.cliente]) mapa[c.cliente] = { cliente: c.cliente, total_valor: 0, facturas: [], max_mora: 0, proceso: c.proceso };
+        mapa[c.cliente].total_valor += c.valor;
+        mapa[c.cliente].facturas.push(c.factura);
+        if (c.dias_mora > mapa[c.cliente].max_mora) mapa[c.cliente].max_mora = c.dias_mora;
+      });
+      return Object.values(mapa).sort((a, b) => b.total_valor - a.total_valor);
+    };
+
+    return { 
+      resumen_morosidad: summary, 
+      clientes_totales: Object.values(clientsMap).map(c => ({...c, criticidad: c.max_mora > 120 ? 'Rojo (>120)' : 'Otros', badgeClass: c.max_mora > 120 ? 'bg-red-100 text-red-800' : 'bg-gray-100'})), 
+      clientes_criticos: Object.values(clientsMap).filter(c => criticalClientsSet.has(c.cliente)), 
+      clientes_juridico: agruparPorCliente(casos_juridico), 
+      analisis: { tecnico: textAnalisisTecnico, fundamental: textAnalisisFundamental } 
+    };
   };
 
-  // ... (fetchData permanece igual)
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch(CSV_URL);
+      const csvText = await response.text();
+      const rows = csvToArray(csvText);
+      const headers = rows[0].map(h => h.trim().toLowerCase());
+      setData(processData(rows.slice(1).map(row => { let obj = {}; headers.forEach((h, i) => obj[h] = row[i]); return obj; })));
+    } catch (err) { setError("Error cargando datos"); } finally { setLoading(false); }
+  };
 
-  // ACTUALIZACIÓN EN LA PESTAÑA JURÍDICO (dentro del return):
-  /* Busca esta sección en tu código y asegúrate de que la tabla incluya la nueva columna:
-     
-     <table className="w-full text-left border-collapse">
-       <thead>
-         <tr className="bg-slate-50 text-slate-600 text-sm uppercase tracking-wider">
-           <th className="p-4 font-semibold border-b">Cliente</th>
-           <th className="p-4 font-semibold border-b">Total Adeudado</th>
-           <th className="p-4 font-semibold border-b text-blue-700">Estado / Proceso</th>
-         </tr>
-       </thead>
-       <tbody className="divide-y divide-slate-100">
-         {data.casos_juridico.map((c, idx) => (
-           <tr key={idx} className="hover:bg-purple-50/30 transition-colors">
-             <td className="p-4 font-bold text-slate-800">{c.cliente}</td>
-             <td className="p-4 font-bold text-slate-700">${c.valor.toLocaleString()}</td>
-             <td className="p-4">
-               <span className="px-3 py-1 rounded bg-blue-100 text-blue-800 font-bold text-sm">
-                 {c.proceso}
-               </span>
-             </td>
-           </tr>
-         ))}
-       </tbody>
-     </table>
-  */
+  useEffect(() => { fetchData(); }, []);
+
+  return (
+    <div className="min-h-screen bg-slate-50 p-8">
+      {data && activeTab === 'juridico' && (
+        <div className="bg-white border rounded-xl overflow-hidden shadow-sm">
+          <table className="w-full text-left">
+            <thead>
+              <tr className="bg-slate-100">
+                <th className="p-4">Cliente</th>
+                <th className="p-4">Total Adeudado</th>
+                <th className="p-4">Estado / Proceso</th>
+              </tr>
+            </thead>
+            <tbody>
+              {data.clientes_juridico.map((c, i) => (
+                <tr key={i} className="border-b">
+                  <td className="p-4 font-bold">{c.cliente}</td>
+                  <td className="p-4">${c.total_valor.toLocaleString()}</td>
+                  <td className="p-4 font-bold text-blue-600">{c.proceso}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
 }
