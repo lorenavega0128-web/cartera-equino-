@@ -4,24 +4,64 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cartera Equino</title>
-    <!-- Tailwind CSS para diseño profesional -->
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-slate-50 min-h-screen flex items-center justify-center p-6">
+<body class="bg-slate-50 min-h-screen p-6">
 
-    <!-- Tarjeta del Dashboard -->
-    <div class="bg-white p-10 rounded-2xl shadow-xl border border-slate-200 text-center max-w-md w-full">
-        <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">CARTERA EQUINO</h1>
-        <p class="mt-4 text-slate-600 text-lg">¡Sistema en línea y funcionando correctamente!</p>
-        
-        <div class="mt-8 p-4 bg-green-50 text-green-700 rounded-xl font-medium border border-green-200">
-            ✅ Dashboard cargado exitosamente.
-        </div>
-        
-        <div class="mt-6 text-slate-400 text-sm">
-            Estado: Conectado a la nube.
+    <!-- Contenedor Principal -->
+    <div class="max-w-4xl mx-auto">
+        <div class="bg-white p-8 rounded-2xl shadow-xl border border-slate-200 text-center">
+            <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">CARTERA EQUINO</h1>
+            <p id="status" class="mt-4 text-slate-600 text-lg">Conectando con la base de datos...</p>
+            
+            <div id="data-container" class="mt-8">
+                <!-- Aquí aparecerán los datos cargados -->
+                <div class="animate-pulse space-y-4">
+                    <div class="h-4 bg-slate-200 rounded w-3/4 mx-auto"></div>
+                    <div class="h-4 bg-slate-200 rounded w-1/2 mx-auto"></div>
+                </div>
+            </div>
         </div>
     </div>
 
+    <script>
+        // URL de tu CSV (Google Sheets)
+        const CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vTvS_GNlePDLV0i10lt51vBawTRbEWfprJ_-eKsnsy-AQbt_6fY-Mabz0jhSQ8lmfL4ltG7BJyRCgQo/pub?output=csv";
+
+        async function loadData() {
+            try {
+                const response = await fetch(CSV_URL);
+                const data = await response.text();
+                
+                // Procesar CSV a array simple
+                const rows = data.split('\n').map(row => row.split(','));
+                
+                const container = document.getElementById('data-container');
+                const status = document.getElementById('status');
+                
+                status.innerText = "Datos cargados exitosamente.";
+                status.className = "mt-4 text-green-600 font-bold";
+
+                // Generar tabla de datos
+                let html = '<div class="overflow-x-auto"><table class="w-full text-left border-collapse">';
+                rows.forEach((row, index) => {
+                    html += `<tr class="${index === 0 ? 'bg-slate-100 font-bold' : 'border-b'}">`;
+                    row.forEach(cell => {
+                        html += `<td class="p-3 text-sm">${cell}</td>`;
+                    });
+                    html += '</tr>';
+                });
+                html += '</table></div>';
+                
+                container.innerHTML = html;
+            } catch (err) {
+                document.getElementById('status').innerText = "Error al conectar con los datos.";
+                document.getElementById('status').className = "mt-4 text-red-600 font-bold";
+            }
+        }
+
+        // Ejecutar carga al abrir
+        window.onload = loadData;
+    </script>
 </body>
 </html>
