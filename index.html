@@ -4,27 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cartera Equino</title>
-    <!-- Tailwind CSS -->
+    <!-- Tailwind CSS para diseño profesional -->
     <script src="https://cdn.tailwindcss.com"></script>
-    <!-- React (sin Babel, usando versión directa) -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 </head>
-<body class="bg-slate-50">
-    <div id="root"></div>
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-6">
 
-    <script>
-        // Usamos React.createElement en lugar de JSX para evitar errores de compilación
-        const e = React.createElement;
+    <!-- Tarjeta del Dashboard -->
+    <div class="bg-white p-10 rounded-2xl shadow-xl border border-slate-200 text-center max-w-md w-full">
+        <h1 class="text-4xl font-extrabold text-slate-900 tracking-tight">CARTERA EQUINO</h1>
+        <p class="mt-4 text-slate-600 text-lg">¡Sistema en línea y funcionando correctamente!</p>
+        
+        <div class="mt-8 p-4 bg-green-50 text-green-700 rounded-xl font-medium border border-green-200">
+            ✅ Dashboard cargado exitosamente.
+        </div>
+        
+        <div class="mt-6 text-slate-400 text-sm">
+            Estado: Conectado a la nube.
+        </div>
+    </div>
 
-        function App() {
-            return e('div', { className: 'min-h-screen flex items-center justify-center p-6' },
-                e('div', { className: 'bg-white p-10 rounded-2xl shadow-xl border border-slate-200 text-center max-w-md' },
-                    e('h1', { className: 'text-3xl font-bold text-slate-900' }, 'CARTERA EQUINO'),
-                    e('p', { className: 'mt-4 text-slate-600' }, '¡Sistema en línea y funcionando!'),
-                    e('div', { className: 'mt-6 p-4 bg-green-50 text-green-700 rounded-lg font-medium' }, 
-                        'Dashboard cargado exitosamente.'
-                    )
-                )
-            );
-        }
+</body>
+</html>
