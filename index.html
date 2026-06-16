@@ -13,37 +13,80 @@
     <div id="root"></div>
 
     <script type="text/babel">
-        // [Aquí iría toda tu lógica anterior igual]
-        // Solo asegúrate de que en la tabla de jurídico añades:
-        // <th className="p-4">Proceso</th>
-        // <td className="p-4 font-bold text-blue-600">{fila.proceso}</td>
+        const { useState, useEffect } = React;
+        const { RefreshCw, FileJson, PieChart, Scale, AlertCircle, BarChart3, AlertOctagon } = { 
+            RefreshCw: () => <span className="font-bold">↻</span>,
+            FileJson: () => <span>📄</span>,
+            PieChart: () => <span>📊</span>,
+            Scale: () => <span>⚖️</span>,
+            AlertCircle: () => <span>⚠️</span>,
+            BarChart3: () => <span>📈</span>,
+            AlertOctagon: () => <span>🛑</span>
+        };
 
-        // Para no fallar, usa este bloque que ya integra la columna:
         function App() {
-            // ... (Toda la lógica de datos)
-            // En la sección de la pestaña 'juridico' dentro del return:
-            /*
-            <table className="w-full text-left">
-                <thead>
-                    <tr className="bg-slate-100">
-                        <th className="p-4">Cliente</th>
-                        <th className="p-4">Valor</th>
-                        <th className="p-4 text-blue-700">Detalle Proceso</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {clientes_juridico.map((c, i) => (
-                        <tr key={i} className="border-t">
-                            <td className="p-4 font-bold">{c.cliente}</td>
-                            <td className="p-4">${c.total_valor.toLocaleString()}</td>
-                            <td className="p-4 font-bold text-blue-600 bg-blue-50 rounded">{c.proceso}</td>
-                        </tr>
-                    ))}
-                </tbody>
-            </table>
-            */
+            const [data, setData] = useState(null);
+            
+            // Función procesar datos con la nueva columna 'proceso'
+            const processData = (rawData) => {
+                const headers = rawData[0].map(h => h.toLowerCase().trim());
+                const rows = rawData.slice(1);
+                let juridicos = rows.map(row => {
+                    const obj = {};
+                    headers.forEach((h, i) => obj[h] = row[i]);
+                    return {
+                        cliente: obj['cliente'] || 'N/A',
+                        valor: parseFloat(obj['valor']?.replace(/[^0-9]/g, '') || 0),
+                        mora: parseInt(obj['mora'] || 0),
+                        proceso: obj['proceso'] || 'En trámite' // <--- AQUÍ CAPTURA EL PROCESO
+                    };
+                }).filter(r => r.valor > 0);
+
+                return { juridicos: juridicos.filter(r => r.mora > 30) }; // Ejemplo filtro
+            };
+
+            useEffect(() => {
+                fetch("https://docs.google.com/spreadsheets/d/e/2PACX-1vRqllr02inUvRyJuHOKiX8lc8XTolV9iQQ7Vo6-uzfANrwDLeKEE5w1WukZfz8iBw/pub?output=csv")
+                .then(res => res.text())
+                .then(text => {
+                    const rows = text.split('\n').map(r => r.split(','));
+                    setData(processData(rows));
+                });
+            }, []);
+
+            if (!data) return <div>Cargando sistema...</div>;
+
+            return (
+                <div className="max-w-6xl mx-auto">
+                    <h2 className="text-3xl font-bold mb-6">Estado Jurídico</h2>
+                    <div className="bg-white rounded-xl shadow border overflow-hidden">
+                        <table className="w-full text-left">
+                            <thead className="bg-slate-100">
+                                <tr>
+                                    <th className="p-4">Cliente</th>
+                                    <th className="p-4">Valor Deuda</th>
+                                    <th className="p-4 text-blue-700">Detalle del Proceso</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y">
+                                {data.juridicos.map((c, i) => (
+                                    <tr key={i} className="hover:bg-slate-50">
+                                        <td className="p-4 font-bold">{c.cliente}</td>
+                                        <td className="p-4">${c.valor.toLocaleString()}</td>
+                                        <td className="p-4">
+                                            <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full font-bold">
+                                                {c.proceso}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            );
         }
-        // ... (resto del render)
+        ReactDOM.createRoot(document.getElementById('root')).render(<App />);
     </script>
 </body>
 </html>
