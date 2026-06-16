@@ -4,47 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cartera Equino</title>
+    <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React (sin Babel, usando versión directa) -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <script src="https://unpkg.com/lucide@latest"></script>
 </head>
 <body class="bg-slate-50">
     <div id="root"></div>
 
-    <script type="text/babel">
-        const { useState, useEffect } = React;
-        const { PieChart, AlertCircle, FileJson, BarChart3, CheckCircle2 } = lucide;
+    <script>
+        // Usamos React.createElement en lugar de JSX para evitar errores de compilación
+        const e = React.createElement;
 
         function App() {
-            const [status, setStatus] = useState("Cargando...");
-
-            useEffect(() => {
-                // Simulamos una carga exitosa para confirmar que todo funciona
-                setTimeout(() => {
-                    setStatus("App conectada y operativa ✅");
-                }, 1000);
-            }, []);
-
-            return (
-                <div className="min-h-screen p-6 flex items-center justify-center">
-                    <div className="bg-white p-10 rounded-2xl shadow-xl text-center border border-slate-200">
-                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-                            <CheckCircle2 className="w-8 h-8 text-green-600" />
-                        </div>
-                        <h1 className="text-3xl font-bold text-slate-900">CARTERA EQUINO</h1>
-                        <p className="text-slate-600 mt-4">Sistema cargado correctamente.</p>
-                        <div className="mt-6 p-4 bg-green-50 text-green-700 rounded-lg font-medium">
-                            {status}
-                        </div>
-                    </div>
-                </div>
+            return e('div', { className: 'min-h-screen flex items-center justify-center p-6' },
+                e('div', { className: 'bg-white p-10 rounded-2xl shadow-xl border border-slate-200 text-center max-w-md' },
+                    e('h1', { className: 'text-3xl font-bold text-slate-900' }, 'CARTERA EQUINO'),
+                    e('p', { className: 'mt-4 text-slate-600' }, '¡Sistema en línea y funcionando!'),
+                    e('div', { className: 'mt-6 p-4 bg-green-50 text-green-700 rounded-lg font-medium' }, 
+                        'Dashboard cargado exitosamente.'
+                    )
+                )
             );
         }
-
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
-</body>
-</html>
